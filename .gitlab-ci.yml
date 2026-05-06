@@ -1,0 +1,72 @@
+image: python:3.12-alpine
+
+services:
+  - docker:27-dind
+  - name: redis:7
+
+stages:
+  - lint
+  - test
+
+variables:
+  DOCKER_TLS_CERTDIR: ""
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  DATABASE_URL: "postgresql+psycopg://docker_user:docker_password@db:5432/docker_db"
+
+cache:
+  paths:
+    - .cache/pip
+
+before_script:
+  - apk add --no-cache 
+      python3 py3-pip python3-dev build-base libffi-dev openssl-dev postgresql-dev redis git
+      docker-cli docker-compose
+  - python3 -m ensurepip --upgrade --default-pip
+  - python3 -m pip install --upgrade --no-cache-dir pip setuptools wheel
+  - python3 -m venv .venv
+  - . .venv/bin/activate
+  - pip install uv
+  - uv pip install --group dev
+  # Runtime create .env
+  - echo "POSTGRES_DB=docker_db" >> .env
+  - echo "POSTGRES_USER=docker_user" >> .env
+  - echo "POSTGRES_PASSWORD=docker_password" >> .env
+  - echo "POSTGRES_PORT_HOST=5433" >> .env
+  - echo "PG_DATA=/var/lib/postgresql/data" >> .env
+  - echo "FASTAPI_SECRET_KEY=dev-secret-key-for-ci" >> .env
+  - echo "TEST_USER=docker_user" >> .env
+  - echo "TEST_PASS=docker_password" >> .env
+  - echo "TEST_HOST=db" >> .env
+  - echo "TEST_PORT=5432" >> .env
+  - echo "TEST_BASE_DB=postgres" >> .env
+  - echo "TEST_DB_NAME=test_db" >> .env
+  - echo "TEST_CLI_DB=test_db_cli" >> .env
+  - echo "TEST_DB_URL=postgresql://docker_user:docker_password@db:5432/test_db" >> .env
+  - echo "JWT_COOKIE_CSRF_PROTECT=False" >> .env.test
+  - echo "REDIS_HOST=redis" >> .env
+  - echo "REDIS_PORT=6379" >> .env
+
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev")'
+
+lint:
+  stage: lint
+  script:
+    - ruff check .
+    - ruff format --check .
+    - mypy --ignore-missing-imports --explicit-package-bases .
+    - pre-commit run --all-files
+  allow_failure: false
+
+test:
+  stage: test
+  script:
+    - docker compose -p $CI_PIPELINE_ID up --build -d
+    - docker compose -p $CI_PIPELINE_ID run --rm app uv run alembic upgrade head
+    - docker compose -p $CI_PIPELINE_ID run --rm app uv run pytest --disable-warnings --maxfail=1
+    - docker compose -p $CI_PIPELINE_ID down
+  after_script:
+    - docker network prune -f
+  allow_failure: false
