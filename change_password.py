@@ -1,5 +1,6 @@
 import secrets
 import time
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
@@ -14,7 +15,7 @@ from schemas.password_str import PasswordStr
 router = APIRouter()
 
 # Temporary storage of reset tokens
-reset_tokens = {}
+reset_tokens: dict[str, tuple[str, float]] = {}
 
 
 class ForgotPasswordRequest(BaseModel):
