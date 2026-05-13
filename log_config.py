@@ -1,7 +1,7 @@
 import os
 import sys
 from enum import Enum
-from logging import Handler, basicConfig
+from logging import WARNING, Handler, basicConfig, getLogger
 
 from loguru import logger
 
@@ -47,3 +47,18 @@ def setup_logging(env: str):
             format='<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | '
             '<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - {message}',
         )
+
+    if env == 'dev':
+        level = 'INFO'
+        logger.add(sys.stdout, level=level, format='{time} | {level} | {message}')
+
+        # Turn off database logs
+        sa_logger = getLogger('sqlalchemy')
+        sa_logger.handlers.clear()
+        sa_logger.propagate = False
+        sa_logger.setLevel(WARNING)
+
+        sa_engine_logger = getLogger('sqlalchemy.engine')
+        sa_engine_logger.handlers.clear()
+        sa_engine_logger.propagate = False
+        sa_engine_logger.setLevel(WARNING)
