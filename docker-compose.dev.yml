@@ -1,4 +1,7 @@
 services:
+  app:
+    environment:
+      - ENV=dev
   nginx:
     ports:
       - "8080:80"
