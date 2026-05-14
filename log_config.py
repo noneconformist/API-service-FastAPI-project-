@@ -49,16 +49,11 @@ def setup_logging(env: str):
         )
 
     if env == 'dev':
+
+        def db_filter(record):
+            if record['name'].startswith('sqlalchemy'):
+                return record['level'].no >= WARNING
+            return True
+
         level = 'INFO'
-        logger.add(sys.stdout, level=level, format='{time} | {level} | {message}')
-
-        # Turn off database logs
-        sa_logger = getLogger('sqlalchemy')
-        sa_logger.handlers.clear()
-        sa_logger.propagate = False
-        sa_logger.setLevel(WARNING)
-
-        sa_engine_logger = getLogger('sqlalchemy.engine')
-        sa_engine_logger.handlers.clear()
-        sa_engine_logger.propagate = False
-        sa_engine_logger.setLevel(WARNING)
+        logger.add(sys.stdout, level=level, filter=db_filter, format='{time} | {level} | {message}')
