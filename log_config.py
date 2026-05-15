@@ -1,7 +1,7 @@
 import os
 import sys
 from enum import Enum
-from logging import WARNING, Handler, basicConfig, getLogger
+from logging import ERROR, WARNING, Handler, basicConfig, getLogger
 
 from loguru import logger
 
@@ -12,7 +12,7 @@ class Env(str, Enum):
     PROD = 'prod'
 
 
-ENV: Env = Env(os.getenv('ENV', 'local').lower())
+ENV: Env = Env(os.getenv('ENV', 'prod').lower())
 
 
 # Loguru settings: maximum 10 files, each up to 1 MB
@@ -57,3 +57,8 @@ def setup_logging(env: str):
 
         level = 'INFO'
         logger.add(sys.stdout, level=level, filter=db_filter, format='{time} | {level} | {message}')
+
+    elif env == 'prod':
+        level = 'ERROR'
+        getLogger('uvicorn.access').setLevel(ERROR)
+        logger.add(sys.stdout, level=level, format='{time} | {level} | {message}')
