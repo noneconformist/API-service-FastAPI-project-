@@ -6,7 +6,7 @@ DATABASE_URL = 'postgresql+asyncpg://docker_user:docker_password@db:5432/docker_
 
 engine = create_async_engine(
     DATABASE_URL,
-    echo=True,
+    echo=False,
     pool_pre_ping=True,
 )
 

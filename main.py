@@ -16,6 +16,7 @@ from change_password import router as change_password_router
 from core import pwd_context
 from database import get_db
 from exceptions import register_exception_handlers
+from log_config import ENV, setup_logging
 from models import Role, User
 from schemas.password_str import PasswordStr
 from schemas.users import SuperUserUpdate, UserOut, UserUpdate
@@ -28,6 +29,9 @@ except Exception:
 
 
 app = FastAPI()
+
+# Logging
+setup_logging(ENV)
 
 # REDIS
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')

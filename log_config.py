@@ -1,7 +1,7 @@
 import os
 import sys
 from enum import Enum
-from logging import Handler, basicConfig
+from logging import WARNING, Handler, basicConfig, getLogger
 
 from loguru import logger
 
@@ -47,3 +47,13 @@ def setup_logging(env: str):
             format='<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | '
             '<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - {message}',
         )
+
+    if env == 'dev':
+
+        def db_filter(record):
+            if record['name'].startswith('sqlalchemy'):
+                return record['level'].no >= WARNING
+            return True
+
+        level = 'INFO'
+        logger.add(sys.stdout, level=level, filter=db_filter, format='{time} | {level} | {message}')
