@@ -12,15 +12,7 @@ class Env(str, Enum):
     PROD = 'prod'
 
 
-ENV: Env = Env(os.getenv('ENV', 'prod').lower())
-
-
-# Loguru settings: maximum 10 files, each up to 1 MB
-logger.add(
-    'logs/app.log',
-    rotation='1 MB',  # rotation upon reaching 1 MB
-    retention=10,  # store only 10 файлов
-)
+ENV: Env = Env(os.getenv('ENV', 'local').lower())
 
 
 # Intercepting standard logging
@@ -30,12 +22,27 @@ class InterceptHandler(Handler):
         logger_opt.log(record.levelname, record.getMessage())
 
 
-basicConfig(handlers=[InterceptHandler()], level=0)
-
-
 def setup_logging(env: str):
     # Removing old handlers
     logger.remove()
+
+    os.makedirs('logs', exist_ok=True)
+
+    # Loguru settings: maximum 10 files, each up to 1 MB
+    logger.add(
+        'logs/app.log',
+        rotation='1 MB',  # rotation upon reaching 1 MB
+        retention=10,  # store only 10 файлов
+        level='INFO',
+        enqueue=True,
+    )
+
+    basicConfig(handlers=[InterceptHandler()], level=0)
+
+    # test a message
+    logger.info('=== Logging system initialized ===')
+    logger.info(f'Environment: {env}')
+    logger.info(f'Log file path: {os.path.abspath("logs/app.log")}')
 
     if env == 'local':
         level = 'INFO'
