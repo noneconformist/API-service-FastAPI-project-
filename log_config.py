@@ -19,7 +19,7 @@ ENV: Env = Env(os.getenv('ENV', 'local').lower())
 class InterceptHandler(Handler):
     def emit(self, record):
         # DEV: suppress SQLAlchemy below WARNING
-        if ENV == Env.DEV and record.name.startswith("sqlalchemy") and record.levelno < WARNING:
+        if ENV == Env.DEV and record.name.startswith('sqlalchemy') and record.levelno < WARNING:
             return
 
         # PROD: show only ERROR
@@ -67,25 +67,21 @@ def setup_logging(env: str):
 
     elif env == 'dev':
         # SQLAlchemy: turn off INFO
-        sa_logger = getLogger("sqlalchemy")
+        sa_logger = getLogger('sqlalchemy')
         sa_logger.setLevel(WARNING)
         sa_logger.propagate = False
 
         # Uvicorn: request logs
-        getLogger("uvicorn").handlers = [InterceptHandler()]
-        getLogger("uvicorn.error").handlers = [InterceptHandler()]
-        getLogger("uvicorn.access").handlers = [InterceptHandler()]
+        getLogger('uvicorn').handlers = [InterceptHandler()]
+        getLogger('uvicorn.error').handlers = [InterceptHandler()]
+        getLogger('uvicorn.access').handlers = [InterceptHandler()]
 
         logger.add(
             sys.stdout,
-            level="INFO",
-            format="{time} | {level} | {message}",
+            level='INFO',
+            format='{time} | {level} | {message}',
         )
 
     elif env == 'prod':
         getLogger('uvicorn.access').setLevel(ERROR)
-        logger.add(
-            sys.stdout,
-            level='ERROR',
-            format='{time} | {level} | {message}'
-        )
+        logger.add(sys.stdout, level='ERROR', format='{time} | {level} | {message}')
