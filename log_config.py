@@ -18,6 +18,15 @@ ENV: Env = Env(os.getenv('ENV', 'local').lower())
 # Intercepting standard logging
 class InterceptHandler(Handler):
     def emit(self, record):
+        # DEV: suppress SQLAlchemy below WARNING
+        if ENV == Env.DEV and record.name.startswith("sqlalchemy") and record.levelno < WARNING:
+            return
+
+        # PROD: show only ERROR
+        if ENV == Env.PROD and record.levelno < ERROR:
+            return
+
+        # LOCAL: don't filter anything
         logger_opt = logger.opt(depth=6, exception=record.exc_info)
         logger_opt.log(record.levelname, record.getMessage())
 
@@ -35,37 +44,48 @@ def setup_logging(env: str):
         retention=10,  # store only 10 файлов
         level='INFO',
         enqueue=True,
+        backtrace=True,
+        diagnose=True,
     )
 
+    # Intercepting standard logging → loguru
     basicConfig(handlers=[InterceptHandler()], level=0)
 
-    # test a message
-    logger.info('=== Logging system initialized ===')
-    logger.info(f'Environment: {env}')
-    logger.info(f'Log file path: {os.path.abspath("logs/app.log")}')
+    # Clearing default handlers for the root logger
+    getLogger().handlers = []
 
+    # Console output depending on the environment
     if env == 'local':
-        level = 'INFO'
         # Console output
         logger.add(
             sys.stdout,
-            level=level,
+            level='INFO',
             colorize=True,
             format='<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | '
             '<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - {message}',
         )
 
-    if env == 'dev':
+    elif env == 'dev':
+        # SQLAlchemy: turn off INFO
+        sa_logger = getLogger("sqlalchemy")
+        sa_logger.setLevel(WARNING)
+        sa_logger.propagate = False
 
-        def db_filter(record):
-            if record['name'].startswith('sqlalchemy'):
-                return record['level'].no >= WARNING
-            return True
+        # Uvicorn: request logs
+        getLogger("uvicorn").handlers = [InterceptHandler()]
+        getLogger("uvicorn.error").handlers = [InterceptHandler()]
+        getLogger("uvicorn.access").handlers = [InterceptHandler()]
 
-        level = 'INFO'
-        logger.add(sys.stdout, level=level, filter=db_filter, format='{time} | {level} | {message}')
+        logger.add(
+            sys.stdout,
+            level="INFO",
+            format="{time} | {level} | {message}",
+        )
 
     elif env == 'prod':
-        level = 'ERROR'
         getLogger('uvicorn.access').setLevel(ERROR)
-        logger.add(sys.stdout, level=level, format='{time} | {level} | {message}')
+        logger.add(
+            sys.stdout,
+            level='ERROR',
+            format='{time} | {level} | {message}'
+        )
